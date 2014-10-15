@@ -45,7 +45,6 @@
 		window.addEventListener('mousemove', mousemove);
 		window.addEventListener('mouseout', mouseout);
 		window.setInterval(update, 30);
-		document.body.style.overflow = 'hidden';
 	}
 
 	var x = 0, y = 0, hasCursor = false;
@@ -67,6 +66,23 @@
 
 	function clamp(x, min, max) {
 		return x < min ? min : x > max ? max : x;
+	}
+
+	function getScroll() {
+		var x, y;
+		if (typeof pageXOffset !== 'undefined') {
+			x = pageXOffset;
+		}
+		else {
+			x = (D.clientWidth ? document.documentElement : document.body).scrollLeft;
+		}
+		if (typeof pageYOffset !== 'undefined') {
+			y = pageYOffset;
+		}
+		else {
+			y = (D.clientHeight ? document.documentElement : document.body).scrollTop;
+		}
+		return { x: x, y: y };
 	}
 
 	/* Sigmoid transfer with scaling/clamping */
@@ -179,15 +195,16 @@
 		});
 		/* Update view */
 		fishies.forEach(function (fish) {
+			var scroll = getScroll();
 			fish.el.style.transform = [
-				position ? '' : 'translate(' + (fish.x + document.body.scrollLeft) + 'px, ' + (fish.y + document.body.scrollTop) + 'px)',
+				position ? '' : 'translate(' + (fish.x + scroll.x) + 'px, ' + (fish.y + scroll.y) + 'px)',
 				'rotate(' + fish.angle + 'rad)',
 				'scaleX(-1)',
 				'scale(' + fish.size + ')'
 			].join(' ');
 			if (position) {
-				fish.el.style.left = (fish.x + document.body.scrollLeft) + 'px';
-				fish.el.style.top = (fish.y + document.body.scrollTop) + 'px';
+				fish.el.style.left = (fish.x + scroll.x) + 'px';
+				fish.el.style.top = (fish.y + scroll.y) + 'px';
 			}
 		});
 	}
