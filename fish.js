@@ -1,7 +1,7 @@
 (function () {
 	'use strict';
 
-	var nFishies = 35;
+	var nFishies = 25;
 	var maxFishSize = 5, minFishSize = 1;
 	var drag = 0.3;
 	var minSpacing = 1.2, maxSpacing = 2, avoidance = 500, chase = 100;
