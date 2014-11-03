@@ -19,7 +19,7 @@
 	/* Initial number of fish */
 	var nFishies = 25;
 	/* Fish count limits */
-	var maxFishies = 50, minFishies = 10;
+	var maxFishies = 35, minFishies = 10;
 	/* Fish size limits */
 	var maxFishSize = 7, minFishSize = 1;
 	/* Fluid drag */
@@ -147,7 +147,7 @@
 		if (fish) {
 			fish = fishies.splice(fishies.indexOf(fish), 1)[0];
 		} else {
-			fish = fish.pop();
+			fish = fishies.pop();
 		}
 		fish.el.parentNode.removeChild(fish.el);
 		fish.el = null;
@@ -216,8 +216,8 @@
 	 *
 	 * ms = milliseconds since last frame
 	 */
-	var frameSpeedDelta = 0;
-	var frameSpeedThreshold = 10;
+	var frameSpeedDelta = 10;
+	var frameSpeedThreshold = 15;
 	var frameSpeedWindowFactor = frameSpeedWindow / 100.0 + 1;
 	function populationControl(ms) {
 		/* 
@@ -239,7 +239,7 @@
 			} else {
 				addFish();
 			}
-			frameSpeedDelta = 0;
+			frameSpeedDelta /= 2;
 		}
 	}
 
