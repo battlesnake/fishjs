@@ -8,12 +8,12 @@
 	var minSpeed = 20;
 	var mouseFollow = 0.8;
 	var fishies = [];
-	var position = true;
+	var position = false;
 
 	function fishScript() {
 		var fishTypes = [
-			{ code: "\uD83D\uDC1F", angle: -Math.PI / 2 },
-			{ code: "\uD83D\uDC20", angle: -Math.PI / 2 }
+			{ code: "\uD83D\uDC1F", angle: -Math.PI / 2, color: 'blue' },
+			{ code: "\uD83D\uDC20", angle: -Math.PI / 2, color: 'yellow' }
 		];
 		for (var i = 0; i < nFishies; i++) {
 			var el = document.createElement('div');
@@ -39,12 +39,14 @@
 			el.style.zIndex = '999999';
 			el.style.transformOrigin = 'center center';
 			el.style.transition = position ? 'left 60ms linear, top 60ms linear' : 'transform 60ms linear';
+			el.style.fontFamily = 'Segoe UI Emoji,Segoe UI Symbol,Symbola,Arial Unicode MS,DejaVu Sans';
+			sl.style.color = fish.type.color;
 			document.body.appendChild(el);
 			fishies.push(fish);
 		}
 		window.addEventListener('mousemove', mousemove);
 		window.addEventListener('mouseout', mouseout);
-		window.setInterval(update, 30);
+		window.setInterval(update, 20);
 	}
 
 	var x = 0, y = 0, hasCursor = false;
