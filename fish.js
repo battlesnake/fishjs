@@ -40,7 +40,7 @@
 			el.style.transformOrigin = 'center center';
 			el.style.transition = position ? 'left 60ms linear, top 60ms linear' : 'transform 60ms linear';
 			el.style.fontFamily = 'Segoe UI Emoji,Segoe UI Symbol,Symbola,Arial Unicode MS,DejaVu Sans';
-			sl.style.color = fish.type.color;
+			el.style.color = fish.type.color;
 			document.body.appendChild(el);
 			fishies.push(fish);
 		}
