@@ -29,7 +29,7 @@
 	/* Avoid edge of browser window */
 	var edgeAvoidance = 2500;
 	/* Minimum fish speed (stops things getting boring) */
-	var minSpeed = 30;
+	var minSpeed = 100;
 	/* How strongly to follow the cursor when it moves */
 	var mouseFollow = 0.8;
 	/* Use css left/top to set position?  Uses transform/translate otherwise. */
@@ -69,8 +69,6 @@
 	var frameSpeedDelta = 10;
 	var frameSpeedThreshold = 15;
 	var frameSpeedWindowFactor = frameSpeedWindow / 100.0 + 1;
-	var frameSkip = 0;
-	var frameSkipNumber = 0;
 
 	/* Physics degree + HTML5 = stupid javascript animations */
 	/* Wouldn't it be awesome to have this script on the homepage? */
@@ -253,13 +251,8 @@
 		var fps = 1 / dt;
 		if (fps < 30) {
 			frameSpeedDelta++;
-			if (frameSkip) {
-				frameSkip--;
-			}
 		} else if (fps > 45 && fishies.length < maxFishies) {
 			frameSpeedDelta--;
-		} else if (fps > 45 && fishies.length === maxFishies && requestAnimationFrame) {
-			frameSkip++;
 		}
 		if (Math.abs(frameSpeedDelta) > frameSpeedThreshold) {
 			if (frameSpeedDelta > 0) {
@@ -463,12 +456,8 @@
 				return;
 			}
 			var dt = (now - lastFrameTime) / 1000;
-			frameSkipNumber++;
-			if (dt > 0 && frameSkipNumber >= frameSkip) {
-				frameSkip = 0;
-				lastFrameTime = now;
-				fn(dt);
-			}
+			lastFrameTime = now;
+			fn(dt);
 			animateFrame(fn);
 		}
 	}
