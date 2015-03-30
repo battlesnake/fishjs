@@ -1,4 +1,4 @@
-(function () {
+(function (requestAnimationFrame) {
 	'use strict';
 
 	/*
@@ -32,34 +32,27 @@
 	var minSpeed = 30;
 	/* How strongly to follow the cursor when it moves */
 	var mouseFollow = 0.8;
-	/* Use css left/top to set position?  Uses translate otherwise */
+	/* Use css left/top to set position?  Uses transform/translate otherwise. */
 	var position = true;
-	/* CSS transition delay (ms) for smoothing motion (0 to disable) */
-	var smoothingTime = 50;
-	/* Target frame length (ms) */
-	var frameTime = 30;
+	/*
+	 * CSS transition delay (ms) for smoothing motion (0 to disable).
+	 *
+	 * Enabling this may force each fish to be rendered in its own GraphicsLayer
+	 * which will hurt performance (on Blink anyway).
+	 */
+	var smoothingTime = 0;
 	/* Cowardice.  If set to 2.5, fish will only chase others 2.5x smaller */
 	var cowardice = 1.3;
 	/* Big fish slowly shrink */
 	var fishShrinkThreshold = (maxFishSize - minFishSize) / 4 + minFishSize;
 	/* Half-life of excess fish size (seconds) */
 	var fishShrinkHalfLife = 20;
-
+	/* Container element for fishies */
 	var fishTank;
+	/* Used in animateFrame */
+	var lastFrameTime;
 
-	function fishScript() {
-		fishTank = document.createElement('div');
-		document.body.appendChild(fishTank);
-		fishTank.style = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; overflow: visible;';
-		for (var i = 0; i < nFishies; i++) {
-			addFish();
-		}
-		window.addEventListener('mousemove', mousemove);
-		window.addEventListener('mouseout', mouseout);
-		window.setInterval(update, frameTime);
-		update();
-	}
-
+	/* Types of fish */
 	var fishTypes = [
 		{ code: "\uD83D\uDC1F", angle: -Math.PI / 2, color: 'blue' },
 		{ code: "\uD83D\uDC20", angle: -Math.PI / 2, color: 'yellow' }
@@ -67,6 +60,44 @@
 
 	/* Fish array */
 	var fishies = [];
+
+	/* Cursor tracking */
+	var x = 0, y = 0, hasCursor = false;
+
+	/* Animation stuff */
+	var frameSpeedWindow = 15;
+	var frameSpeedDelta = 10;
+	var frameSpeedThreshold = 15;
+	var frameSpeedWindowFactor = frameSpeedWindow / 100.0 + 1;
+	var frameSkip = 0;
+	var frameSkipNumber = 0;
+
+	/* Physics degree + HTML5 = stupid javascript animations */
+	/* Wouldn't it be awesome to have this script on the homepage? */
+	if (document.readyState === 'complete') {
+		fishScript();
+	} else {
+		window.addEventListener('load', fishScript);
+	}
+
+	return;
+
+	function fishScript() {
+		fishTank = document.createElement('div');
+		fishTank.style.position = 'fixed';
+		fishTank.style.top = '1px';
+		fishTank.style.left = '1px';
+		fishTank.style.right = '1px';
+		fishTank.style.bottom = '1px';
+		fishTank.style.overflow = 'hidden';
+		document.body.appendChild(fishTank);
+		for (var i = 0; i < nFishies; i++) {
+			addFish();
+		}
+		window.addEventListener('mousemove', mousemove);
+		window.addEventListener('mouseout', mouseout);
+		animateFrame(update);
+	}
 
 	/* Symmetric-range random number */
 	function randSym(v) {
@@ -106,7 +137,9 @@
 		el.style.top = 0;
 		el.style.display = 'block';
 		el.style.zIndex = '999999';
-		el.style.transformOrigin = 'center center';
+		if (!position) {
+			el.style.transformOrigin = 'center center';
+		}
 		updateFishView(fish);
 		if (smoothingTime > 0) {
 			var smoothen = position ? ['left', 'top'] : ['transform'];
@@ -152,8 +185,6 @@
 		fish.el.parentNode.removeChild(fish.el);
 		fish.el = null;
 	}
-
-	var x = 0, y = 0, hasCursor = false;
 
 	function mousemove(e) {
 		x = e.clientX;
@@ -207,29 +238,28 @@
 		return 1 / (1 + Math.exp(x * 8 - 4));
 	}
 
-	var prev = new Date().getTime();
-
-	var frameSpeedWindow = 15;
-
 	/* 
 	 * Add/remove fishies to keep frame speed within % of target value
 	 *
 	 * ms = milliseconds since last frame
 	 */
-	var frameSpeedDelta = 10;
-	var frameSpeedThreshold = 15;
-	var frameSpeedWindowFactor = frameSpeedWindow / 100.0 + 1;
-	function populationControl(ms) {
+	function populationControl(dt) {
 		/* 
 		 * Pixels and cpu cycles are a finite resource.  Too many fish results in
 		 * the environment being depleted of CPU cycles and pixels, so fish start
 		 * to starve to death.  As fish die out, CPU cycles and pixels start to
 		 * grow back again.
 		 */
-		if (ms > frameTime * frameSpeedWindowFactor) {
+		var fps = 1 / dt;
+		if (fps < 30) {
 			frameSpeedDelta++;
-		} else if (fishies.length < maxFishies) {
+			if (frameSkip) {
+				frameSkip--;
+			}
+		} else if (fps > 45 && fishies.length < maxFishies) {
 			frameSpeedDelta--;
+		} else if (fps > 45 && fishies.length === maxFishies && requestAnimationFrame) {
+			frameSkip++;
 		}
 		if (Math.abs(frameSpeedDelta) > frameSpeedThreshold) {
 			if (frameSpeedDelta > 0) {
@@ -243,61 +273,25 @@
 		}
 	}
 
-	function update() {
-		var now = new Date().getTime();
-		var ms = now - prev;
-		var dt = ms / 1000;
+	function update(dt) {
 		dt = clamp(dt, 0, 1 / 20);
-		prev = now;
 		/* Population control */
-		populationControl(ms);
-		/* Acceleration */
+		populationControl(dt);
+		/* Reset acceleration (accumulates each frame) */
 		fishies.forEach(function(fish) {
 			fish.ddx = 0;
 			fish.ddy = 0;
 		});
 		/* Accelerate towards cursor */
-		if (hasCursor) {
-			fishies.forEach(function(fish) {
-				fish.ddx += (x - fish.x) * fish.speed * mouseFollow;
-				fish.ddy += (y - fish.y) * fish.speed * mouseFollow;
-			});
-		}
+		followCursor();
 		/* Drag */
-		fishies.forEach(function(fish) {
-			if (Math.hypot(fish.dx, fish.dy) < minSpeed) {
-				return;
-			}
-			function spow(x) {
-				return Math.pow(Math.abs(x), 1.3) * Math.sign(x);
-			}
-			fish.ddx -= spow(fish.dx) * drag;
-			fish.ddy -= spow(fish.dy) * drag;
-		});
+		applyDrag();
 		/* Avoidance and chasing */
 		socialBehaviour();
 		/* Remove eaten fish */
-		fishies
-			.filter(function (fish) {
-				return fish.dying;
-			})
-			.forEach(function (fish) {
-				fish.die();
-			});
+		removeEaten();
 		/* Shrink */
-		fishies
-			.forEach(function (fish) {
-				var diff = fish.size - fishShrinkThreshold;
-				if (diff < 0) {
-					return;
-				}
-				/*
-				 * If I recall the decay equation from my nuclear physics
-				 * correctly, this should give excess fish mass a "half-life".
-				 */
-				var loss = 1 - Math.exp(-dt * 0.69 / fishShrinkHalfLife);
-				fish.size -= diff * loss;
-			});
+		weightLoss(dt);
 		/* Clamp */
 		avoidTankEdges();
 		/* Acceleration integral */
@@ -316,6 +310,54 @@
 		});
 		/* Update view */
 		updateView();
+	}
+
+	function applyDrag() {
+		fishies.forEach(function(fish) {
+			if (Math.hypot(fish.dx, fish.dy) < minSpeed) {
+				return;
+			}
+			function spow(x) {
+				return Math.pow(Math.abs(x), 1.3) * Math.sign(x);
+			}
+			fish.ddx -= spow(fish.dx) * drag;
+			fish.ddy -= spow(fish.dy) * drag;
+		});
+	}
+
+	function followCursor() {
+		if (hasCursor) {
+			fishies.forEach(function(fish) {
+				fish.ddx += (x - fish.x) * fish.speed * mouseFollow;
+				fish.ddy += (y - fish.y) * fish.speed * mouseFollow;
+			});
+		}
+	}
+
+	function removeEaten() {
+		fishies
+			.filter(function (fish) {
+				return fish.dying;
+			})
+			.forEach(function (fish) {
+				fish.die();
+			});
+	}
+
+	function weightLoss(dt) {
+		fishies
+			.forEach(function (fish) {
+				var diff = fish.size - fishShrinkThreshold;
+				if (diff < 0) {
+					return;
+				}
+				/*
+				 * If I recall the decay equation from my nuclear physics
+				 * correctly, this should give excess fish mass a "half-life".
+				 */
+				var loss = 1 - Math.exp(-dt * 0.69 / fishShrinkHalfLife);
+				fish.size -= diff * loss;
+			});
 	}
 
 	function socialBehaviour() {
@@ -407,12 +449,28 @@
 		}
 	}
 
-	/* Physics degree + HTML5 = stupid javascript animations */
-	/* Wouldn't it be awesome to have this script on the homepage? */
-	if (document.readyState === 'complete') {
-		fishScript();
-	} else {
-		window.addEventListener('load', fishScript);
+	function animateFrame(fn) {
+		if (requestAnimationFrame) {
+			requestAnimationFrame(onTick);
+		} else {
+			setTimeout(function () { onTick(new Date().getTime()); }, 1000 / 60);
+		}
+
+		function onTick(now) {
+			if (!lastFrameTime) {
+				lastFrameTime = now;
+				animateFrame(fn);
+				return;
+			}
+			var dt = (now - lastFrameTime) / 1000;
+			frameSkipNumber++;
+			if (dt > 0 && frameSkipNumber >= frameSkip) {
+				frameSkip = 0;
+				lastFrameTime = now;
+				fn(dt);
+			}
+			animateFrame(fn);
+		}
 	}
 
-})();
+})(window.requestAnimationFrame);
