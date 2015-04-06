@@ -88,6 +88,7 @@
 		fishTank.style.right = '1px';
 		fishTank.style.bottom = '1px';
 		fishTank.style.overflow = 'hidden';
+		fishTank.style.pointerEvents = 'none';
 		document.body.appendChild(fishTank);
 		for (var i = 0; i < nFishies; i++) {
 			addFish();
